@@ -1,13 +1,9 @@
 [project]
-name = "train-tracking-backend"
+name = "Public-Transport-Planner"
 version = "0.1.0"
-description = "Baseline backend for a train tracking application"
+description = "Backend for the Public Transport Planner application"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115,<1.0",
-    "asyncpg>=0.30,<1.0",
-    "uvicorn[standard]>=0.34,<1.0",
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.141.1",
+    "psycopg[binary]>=3.3.5",
 ]
-
-[tool.uv]
-package = false
