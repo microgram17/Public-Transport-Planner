@@ -3,7 +3,8 @@ FROM ghcr.io/astral-sh/uv:python3.12-trixie-slim
 WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1 \
-    UV_LINK_MODE=copy
+    UV_LINK_MODE=copy \
+    PYTHONPATH=/app/src
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \

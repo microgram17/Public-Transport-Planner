@@ -10,6 +10,10 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.uv-cache/
+
+# Downloaded transit feeds are large and refreshed outside Git.
+data/sl/
 
 # Node / Vite
 node_modules/

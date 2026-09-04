@@ -40,6 +40,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     develop:
       watch:
         - action: sync
@@ -49,6 +52,17 @@ services:
           path: ./backend/pyproject.toml
         - action: rebuild
           path: ./backend/uv.lock
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     build:
@@ -74,5 +88,20 @@ services:
         - action: rebuild
           path: ./frontend/package-lock.json
 
+  gtfs-import:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.gtfs
+    env_file:
+      - .env
+    volumes:
+      - gtfs_cache_dev:/var/lib/gtfs
+      - ./data:/data:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    profiles: ["tools"]
+
 volumes:
   postgres_data_dev:
+  gtfs_cache_dev:

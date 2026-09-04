@@ -1,6 +1,6 @@
-import os
-
 from fastapi import FastAPI
+
+from app.config import get_settings
 
 app = FastAPI(title="Public Transport Planner API")
 
@@ -11,6 +11,5 @@ async def health() -> dict[str, str]:
 
 
 @app.get("/api/config-check")
-async def config_check() -> dict[str, str]:
-    database_url = os.getenv("DATABASE_URL", "")
-    return {"database_configured": str(bool(database_url))}
+async def config_check() -> dict[str, bool]:
+    return {"database_configured": bool(get_settings().database_url)}

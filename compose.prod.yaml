@@ -38,6 +38,37 @@ services:
       retries: 5
       start_period: 5s
     restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gtfs-import:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.gtfs
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
+      GTFS_OPERATOR: ${GTFS_OPERATOR:-sl}
+      GTFS_REGIONAL_STATIC_API_KEY: ${GTFS_REGIONAL_STATIC_API_KEY:-}
+      GTFS_CACHE_DIR: /var/lib/gtfs
+      GTFS_VALIDATE: ${GTFS_VALIDATE:-true}
+    volumes:
+      - gtfs_cache:/var/lib/gtfs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    profiles: ["tools"]
 
   frontend:
     build:
@@ -52,3 +83,4 @@ services:
 
 volumes:
   postgres_data:
+  gtfs_cache:
