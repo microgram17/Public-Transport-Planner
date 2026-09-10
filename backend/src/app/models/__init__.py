@@ -1,10 +1,11 @@
-from app.models.base import Base
 from app.models.gtfs import (
+    GTFS_MODELS,
     Agency,
     Attribution,
     BookingRule,
     Calendar,
     CalendarDate,
+    DatabaseModel,
     FeedImport,
     FeedInfo,
     Route,
@@ -14,16 +15,19 @@ from app.models.gtfs import (
     Transfer,
     Trip,
 )
+from app.models.pagination import Page
 
 __all__ = [
+    "GTFS_MODELS",
     "Agency",
     "Attribution",
-    "Base",
     "BookingRule",
     "Calendar",
     "CalendarDate",
+    "DatabaseModel",
     "FeedImport",
     "FeedInfo",
+    "Page",
     "Route",
     "Shape",
     "Stop",

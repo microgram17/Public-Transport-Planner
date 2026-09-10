@@ -1,29 +1,50 @@
-from sqlalchemy import Double, Integer
-from sqlalchemy.orm import configure_mappers
+from types import NoneType
+from typing import get_args
+
+import pytest
+from pydantic import ValidationError
 
 from app.gtfs.manifest import TABLES
-from app.models import Base, StopTime
+from app.models import GTFS_MODELS, FeedImport, Page, Stop
 
 
 def test_gtfs_models_cover_imported_tables() -> None:
-    expected = {table.name for table in TABLES} | {"feed_imports"}
-
-    assert set(Base.metadata.tables) == {f"gtfs.{name}" for name in expected}
+    assert set(GTFS_MODELS) == {table.name for table in TABLES}
 
 
-def test_models_use_database_types_for_gtfs_values() -> None:
-    configure_mappers()
+def test_gtfs_model_fields_cover_database_rows() -> None:
+    generated_fields = {
+        "attributions": {"id"},
+        "transfers": {"id"},
+    }
 
-    assert isinstance(StopTime.__table__.c.arrival_seconds.type, Integer)
-    assert isinstance(Base.metadata.tables["gtfs.stops"].c.stop_lat.type, Double)
-    assert StopTime.__table__.primary_key.columns.keys() == ["trip_id", "stop_sequence"]
+    for table in TABLES:
+        expected = {field.target for field in table.fields} | generated_fields.get(table.name, set())
+        assert set(GTFS_MODELS[table.name].model_fields) == expected
 
 
-def test_feed_import_index_keeps_newest_imports_first() -> None:
-    index = next(
-        index
-        for index in Base.metadata.tables["gtfs.feed_imports"].indexes
-        if index.name == "feed_imports_operator_imported_idx"
-    )
+def test_optional_model_fields_default_to_none() -> None:
+    for model in [FeedImport, *GTFS_MODELS.values()]:
+        for field in model.model_fields.values():
+            if NoneType in get_args(field.annotation):
+                assert not field.is_required()
+                assert field.default is None
 
-    assert str(index.expressions[1]).endswith("imported_at DESC")
+
+def test_stop_validates_database_constraints() -> None:
+    with pytest.raises(ValidationError):
+        Stop(
+            stop_id="invalid",
+            stop_name="Invalid stop",
+            stop_lat=91,
+            stop_lon=18,
+            location_type=0,
+            parent_station=None,
+            platform_code=None,
+        )
+
+
+def test_page_preserves_its_item_type() -> None:
+    page = Page[Stop](items=[{"stop_id": "stop-a"}], total=1, limit=10, offset=0)
+
+    assert isinstance(page.items[0], Stop)

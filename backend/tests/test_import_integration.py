@@ -7,8 +7,10 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import psycopg
 import pytest
 
+from app.db.stops import get_stops
 from app.gtfs.download import local_feed
 from app.gtfs.loader import import_feed, was_imported
+from app.models import Stop
 
 
 def make_feed(path: Path, *, include_stops: bool = True) -> Path:
@@ -76,6 +78,13 @@ def test_import_is_repeatable_and_failure_preserves_live_data(tmp_path: Path) ->
     with psycopg.connect(database_url) as connection, connection.cursor() as cursor:
         cursor.execute("SELECT arrival_seconds FROM gtfs.stop_times WHERE trip_id = 'trip' AND stop_sequence = 1")
         assert cursor.fetchone()[0] == 25 * 3600 + 15 * 60
+
+        first_page = get_stops(connection, limit=2)
+        second_page = get_stops(connection, limit=2, offset=2)
+        assert first_page.total == 3
+        assert all(isinstance(stop, Stop) for stop in first_page.items)
+        assert [stop.stop_id for stop in first_page.items] == ["stop-a", "stop-b"]
+        assert [stop.stop_id for stop in second_page.items] == ["station"]
 
         cursor.execute(
             """

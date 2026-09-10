@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import AliasChoices, Field, SecretStr
+from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
     database_url: str
+    database_pool_min_size: int = Field(default=1, ge=0)
+    database_pool_max_size: int = Field(default=10, ge=1)
+    database_pool_timeout: float = Field(default=30.0, gt=0)
     gtfs_operator: str = "sl"
     gtfs_regional_static_api_key: SecretStr | None = Field(
         default=None,
@@ -23,6 +26,12 @@ class Settings(BaseSettings):
     gtfs_validate: bool = True
     gtfs_validator_jar: Path = Path("/opt/gtfs-validator/gtfs-validator-cli.jar")
     gtfs_validator_version: str = "8.0.1"
+
+    @model_validator(mode="after")
+    def validate_database_pool_size(self) -> Settings:
+        if self.database_pool_min_size > self.database_pool_max_size:
+            raise ValueError("DATABASE_POOL_MIN_SIZE cannot exceed DATABASE_POOL_MAX_SIZE")
+        return self
 
     @property
     def trafiklab_download_url(self) -> str:

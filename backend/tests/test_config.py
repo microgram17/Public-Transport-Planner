@@ -31,3 +31,12 @@ def test_accepts_current_and_legacy_api_key_environment_names(
     settings = Settings(_env_file=None)
 
     assert settings.gtfs_regional_static_api_key_value == "secret-value"
+
+
+def test_rejects_inverted_database_pool_sizes() -> None:
+    with pytest.raises(ValueError, match="DATABASE_POOL_MIN_SIZE"):
+        Settings(
+            database_url="postgresql://example",
+            database_pool_min_size=5,
+            database_pool_max_size=2,
+        )

@@ -7,9 +7,9 @@ dependencies = [
     "alembic>=1.16.5",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.141.1",
     "httpx>=0.28.1",
+    "pydantic>=2.13.5",
     "pydantic-settings>=2.10.1",
-    "psycopg[binary]>=3.3.5",
-    "sqlalchemy>=2.0.43",
+    "psycopg[binary,pool]>=3.3.5",
 ]
 
 [dependency-groups]
