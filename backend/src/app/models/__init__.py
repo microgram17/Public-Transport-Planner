@@ -1,3 +1,4 @@
+from app.models.departures import Departure
 from app.models.gtfs import (
     GTFS_MODELS,
     Agency,
@@ -25,6 +26,7 @@ __all__ = [
     "Calendar",
     "CalendarDate",
     "DatabaseModel",
+    "Departure",
     "FeedImport",
     "FeedInfo",
     "Page",

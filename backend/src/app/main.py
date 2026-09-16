@@ -9,7 +9,8 @@ from fastapi import Depends, FastAPI, Query
 
 from app import db
 from app.config import get_settings
-from app.models import Page, Stop
+from app.db.departures import get_departures_for_station
+from app.models import Departure, Page, Stop
 
 
 @asynccontextmanager
@@ -38,3 +39,17 @@ def get_stops(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> Page[Stop]:
     return db.get_stops(connection, limit=limit, offset=offset)
+
+
+# Placeholder station id until we have an actual selector
+SELECTED_STATION_ID = "9021001000193000"
+
+
+@app.get("/api/departures", response_model=list[Departure])
+def get_departures(
+    connection: Annotated[psycopg.Connection, Depends(db.get_connection)],
+) -> list[Departure]:
+    return get_departures_for_station(
+        connection,
+        station_id=SELECTED_STATION_ID,
+    )
