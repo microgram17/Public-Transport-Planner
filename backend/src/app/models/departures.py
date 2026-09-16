@@ -1,12 +1,10 @@
-from pydantic import Field
-
-from app.models.gtfs import DatabaseModel
+from pydantic import BaseModel, Field
 
 # Separated file for more custom ish models/needs instead of getting from gtfs.db
 # and manually reconstructing them with correct fields
 
 
-class Departure(DatabaseModel):
+class Departure(BaseModel):
     stop_id: str
     stop_name: str | None = None
     platform_code: str | None = None

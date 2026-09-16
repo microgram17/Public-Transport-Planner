@@ -41,6 +41,8 @@ def get_stops(
     return db.get_stops(connection, limit=limit, offset=offset)
 
 
+# TODO: this needs to have current datetime as an argument in the future, so that we retrieve only data that is relevant for the user
+
 # Placeholder station id until we have an actual selector
 SELECTED_STATION_ID = "9021001000193000"
 
