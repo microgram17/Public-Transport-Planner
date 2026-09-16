@@ -3,6 +3,8 @@ from psycopg.rows import class_row
 
 from app.models import Departure
 
+# TODO: Need to add pagination in the future, probably do like 5 at a time, but its fine for now
+
 
 def get_departures_for_station(
     connection: psycopg.Connection,
