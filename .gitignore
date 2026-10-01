@@ -15,6 +15,9 @@ __pycache__/
 # Downloaded transit feeds are large and refreshed outside Git.
 data/sl/
 
+# Local OpenStreetMap extracts are large and imported separately.
+data/*.osm.pbf
+
 # Node / Vite
 node_modules/
 dist/

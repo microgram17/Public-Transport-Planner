@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:18
+    image: postgis/postgis:18-3.6
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-username}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
@@ -97,6 +97,27 @@ services:
     volumes:
       - gtfs_cache_dev:/var/lib/gtfs
       - ./data:/data:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    profiles: ["tools"]
+
+  osm-import:
+    build:
+      context: ./osm
+      dockerfile: Dockerfile
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: ${POSTGRES_USER:-username}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-password}
+      PGDATABASE: ${POSTGRES_DB:-databasename}
+      OSM_SOURCE_FILE: ${OSM_SOURCE_FILE:-}
+      OSM_EXTRACT_FILE: ${OSM_EXTRACT_FILE:-/data/gtfs-area.osm.pbf}
+      OSM_BBOX_PADDING_DEGREES: ${OSM_BBOX_PADDING_DEGREES:-0.25}
+      OSM_CACHE_MB: ${OSM_CACHE_MB:-800}
+    volumes:
+      - ./data:/data
     depends_on:
       migrate:
         condition: service_completed_successfully
