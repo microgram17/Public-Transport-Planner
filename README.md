@@ -6,7 +6,7 @@ Public transport planning application built with React, FastAPI, and PostgreSQL.
 
 * React + TypeScript + Vite
 * FastAPI
-* PostgreSQL 18
+* PostgreSQL 18 with PostGIS
 * Psycopg 3
 * Pydantic
 * Alembic
@@ -123,6 +123,97 @@ docker compose --env-file .env.production -f compose.prod.yaml run --rm gtfs-imp
 ```
 
 Only one importer can run for an operator at a time; a PostgreSQL advisory lock serializes overlapping jobs.
+
+## Importing OpenStreetMap data
+
+Database migrations enable PostGIS and create a separate `osm` schema. OSM data is prepared and loaded by a one-shot
+tool container; it is not imported by the application and does not modify the `gtfs` or `gtfs_staging` schemas.
+
+After updating an existing checkout, recreate the database container with the PostGIS-enabled image and apply the new
+migration. The existing named database volume is retained:
+
+```bash
+docker compose -f compose.dev.yaml up -d postgres
+docker compose -f compose.dev.yaml run --rm migrate
+```
+
+Put a Sweden `.osm.pbf` file in the repository's `data` directory, then run:
+
+```bash
+docker compose -f compose.dev.yaml run --rm --build osm-import
+```
+
+That single command:
+
+1. Reads the minimum and maximum valid coordinates from `gtfs.stops`.
+2. Adds the configured margin (0.25 degrees on every side by default).
+3. Uses Osmium's `smart` extraction strategy to create `data/gtfs-area.osm.pbf`, completing every OSM
+   `type=boundary` and `type=multipolygon` relation that touches the bounding box.
+4. Checks that all extracted ways have their referenced nodes.
+5. Replaces the osm2pgsql tables in the existing `osm` schema.
+
+This makes administrative polygons such as municipalities usable even when their boundaries extend outside the GTFS
+bounding box. It also avoids osm2pgsql's raw `--bbox` filter, which cannot make clipped relations complete. The prepared
+extract can extend well outside the requested box because all members of matching relations are deliberately included.
+It is relation-complete for boundary and multipolygon relations, not for unrelated relation types such as transit
+routes. Completion can only use objects present in the source, so use a normal Sweden regional extract rather than a
+PBF that was already clipped to a small bounding box.
+
+If `data` contains exactly one source PBF, its filename is detected automatically. If it contains multiple source PBFs,
+set `OSM_SOURCE_FILE` in `.env`, using the container path, for example:
+
+```env
+OSM_SOURCE_FILE=/data/sweden-260915.osm.pbf
+```
+
+The optional `OSM_BBOX_PADDING_DEGREES`, `OSM_EXTRACT_FILE`, and `OSM_CACHE_MB` settings are documented in
+`.env.example`. The import is a static snapshot: rerun the same command after replacing the source PBF or GTFS data.
+It prepares and validates the new extract before replacing the current `osm` tables. `--drop` removes osm2pgsql's slim
+tables after a successful import because replication updates are not configured. After each successful import, the tool
+also refreshes `osm.admin_boundaries`, a small stable table used by GTFS views. Keeping this table separate prevents
+dependent views from blocking osm2pgsql when it replaces its own `planet_osm_*` tables.
+
+### Stop display names
+
+The indexed materialized view `gtfs.stops_with_display_name` contains every column from `gtfs.stops` plus:
+
+* `municipality_name`
+* `county_name`
+* `disambiguation_name`
+* `display_name`
+* `needs_secondary_disambiguation`
+
+Same-name parent stations within 500 metres are treated as one user-facing location so separate GTFS records for nearby
+modes do not cause unnecessary suffixes. When the same name occurs in geographically distinct locations, the view adds
+the municipality, for example `Bodal (Lidingö)`. `needs_secondary_disambiguation` is true for the remaining cases where
+multiple distinct locations with the same name are inside one municipality; those need a later locality/district rule.
+The GTFS and OSM importers refresh the materialized view automatically. If either underlying dataset is changed manually,
+refresh it explicitly with `REFRESH MATERIALIZED VIEW gtfs.stops_with_display_name;`.
+
+Query the view with:
+
+```sql
+SELECT stop_id, stop_name, municipality_name, display_name, needs_secondary_disambiguation
+FROM gtfs.stops_with_display_name
+WHERE stop_id = '9021001022041000';
+```
+
+Verify PostGIS and list the imported tables with:
+
+```bash
+docker compose -f compose.dev.yaml exec postgres psql -U username -d databasename -c "SELECT PostGIS_Full_Version();"
+docker compose -f compose.dev.yaml exec postgres psql -U username -d databasename -c "\\dt osm.*"
+docker compose -f compose.dev.yaml exec postgres psql -U username -d databasename -c "SELECT count(*) FROM osm.planet_osm_point;"
+```
+
+Replace `username` and `databasename` if their values differ in `.env`. A default pgsql-output import creates
+`osm.planet_osm_point`, `osm.planet_osm_line`, `osm.planet_osm_polygon`, and `osm.planet_osm_roads`.
+
+For a complete PostGIS, GTFS, OSM, coordinate-system, and test-stop diagnostic in PowerShell, run:
+
+```powershell
+Get-Content -Raw scripts/diagnose_postgis.sql | docker compose -f compose.dev.yaml exec -T postgres psql -U username -d databasename
+```
 
 ## Using an external PostgreSQL database
 

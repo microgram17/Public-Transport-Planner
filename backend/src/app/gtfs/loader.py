@@ -141,6 +141,7 @@ def _load(
         _validate_staging(cursor, row_counts)
         feed_version = _feed_version(cursor)
         _promote(cursor)
+        cursor.execute("REFRESH MATERIALIZED VIEW gtfs.stops_with_display_name")
         cursor.execute(
             """
             UPDATE gtfs.feed_imports

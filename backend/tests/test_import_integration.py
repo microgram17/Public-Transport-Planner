@@ -78,6 +78,8 @@ def test_import_is_repeatable_and_failure_preserves_live_data(tmp_path: Path) ->
     with psycopg.connect(database_url) as connection, connection.cursor() as cursor:
         cursor.execute("SELECT arrival_seconds FROM gtfs.stop_times WHERE trip_id = 'trip' AND stop_sequence = 1")
         assert cursor.fetchone()[0] == 25 * 3600 + 15 * 60
+        cursor.execute("SELECT count(*) FROM gtfs.stops_with_display_name")
+        assert cursor.fetchone()[0] == 3
 
         first_page = get_stops(connection, limit=2)
         second_page = get_stops(connection, limit=2, offset=2)
