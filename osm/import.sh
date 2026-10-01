@@ -12,6 +12,11 @@ fail() {
 }
 
 source_file="${OSM_SOURCE_FILE:-}"
+build_extract=true
+
+if [ -n "$source_file" ] && [ "$source_file" = "$extract_file" ]; then
+    build_extract=false
+fi
 
 if [ -z "$source_file" ]; then
     for candidate in /data/*.osm.pbf; do
@@ -24,20 +29,24 @@ if [ -z "$source_file" ]; then
 
         source_file="$candidate"
     done
+
+    if [ -z "$source_file" ] && [ -f "$extract_file" ]; then
+        build_extract=false
+    fi
 fi
 
-[ -n "$source_file" ] || fail "no source .osm.pbf found in /data"
-[ -f "$source_file" ] || fail "source PBF does not exist: $source_file"
-[ "$source_file" != "$extract_file" ] || fail "OSM_SOURCE_FILE and OSM_EXTRACT_FILE must differ"
+if [ "$build_extract" = true ]; then
+    [ -n "$source_file" ] || fail "no source or prepared .osm.pbf found in /data"
+    [ -f "$source_file" ] || fail "source PBF does not exist: $source_file"
 
-printf 'Reading GTFS stop bounds from %s...\n' "${PGDATABASE:-the configured database}"
+    printf 'Reading GTFS stop bounds from %s...\n' "${PGDATABASE:-the configured database}"
 
-gtfs_bounds="$(
-    psql \
-        --set=ON_ERROR_STOP=1 \
-        --set=padding="$padding_degrees" \
-        --no-align \
-        --tuples-only <<'SQL'
+    gtfs_bounds="$(
+        psql \
+            --set=ON_ERROR_STOP=1 \
+            --set=padding="$padding_degrees" \
+            --no-align \
+            --tuples-only <<'SQL'
 WITH bounds AS (
     SELECT
         min(stop_lon::double precision) AS min_lon,
@@ -58,25 +67,29 @@ SELECT concat_ws(
 FROM bounds
 WHERE min_lon IS NOT NULL;
 SQL
-)"
+    )"
 
-[ -n "$gtfs_bounds" ] || fail "gtfs.stops has no valid longitude/latitude coordinates"
+    [ -n "$gtfs_bounds" ] || fail "gtfs.stops has no valid longitude/latitude coordinates"
 
-printf 'Source PBF: %s\n' "$source_file"
-printf 'Prepared PBF: %s\n' "$extract_file"
-printf 'Extraction bbox (min lon,min lat,max lon,max lat): %s\n' "$gtfs_bounds"
-printf 'Completing all boundary and multipolygon relations that touch the bbox...\n'
+    printf 'Source PBF: %s\n' "$source_file"
+    printf 'Prepared PBF: %s\n' "$extract_file"
+    printf 'Extraction bbox (min lon,min lat,max lon,max lat): %s\n' "$gtfs_bounds"
+    printf 'Completing all boundary and multipolygon relations that touch the bbox...\n'
 
-osmium extract \
-    --strategy=smart \
-    --option=types=multipolygon,boundary \
-    --bbox="$gtfs_bounds" \
-    --set-bounds \
-    --overwrite \
-    --output="$extract_file" \
-    "$source_file"
+    osmium extract \
+        --strategy=smart \
+        --option=types=multipolygon,boundary \
+        --bbox="$gtfs_bounds" \
+        --set-bounds \
+        --overwrite \
+        --output="$extract_file" \
+        "$source_file"
+else
+    [ -f "$extract_file" ] || fail "prepared PBF does not exist: $extract_file"
+    printf 'Using prepared PBF: %s\n' "$extract_file"
+fi
 
-printf 'Checking that every extracted way has all referenced nodes...\n'
+printf 'Checking that every way has all referenced nodes...\n'
 osmium check-refs "$extract_file"
 
 printf 'Replacing the osm2pgsql tables in schema %s...\n' "$osm_schema"
