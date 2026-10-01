@@ -137,7 +137,25 @@ docker compose -f compose.dev.yaml up -d postgres
 docker compose -f compose.dev.yaml run --rm migrate
 ```
 
-Put a Sweden `.osm.pbf` file in the repository's `data` directory, then run:
+### Using a prepared extract
+
+For the smallest teammate setup, copy a prepared file named `gtfs-area.osm.pbf` into the repository's `data` directory,
+then run:
+
+```bash
+docker compose -f compose.dev.yaml run --rm --build osm-import
+```
+
+The importer detects that no larger source PBF is present, validates the prepared file, and imports it directly. The
+Sweden PBF is not needed. A prepared extract can be copied between developers outside Git; `data/*.osm.pbf` remains
+ignored by Git.
+
+### Rebuilding the prepared extract
+
+To rebuild from scratch, download `sweden-latest.osm.pbf` from the
+[Geofabrik Sweden download page](https://download.geofabrik.de/europe/sweden.html) or use its
+[direct PBF download](https://download.geofabrik.de/europe/sweden-latest.osm.pbf), then put it in `data`. When a source
+PBF is present, run the same command:
 
 ```bash
 docker compose -f compose.dev.yaml run --rm --build osm-import
@@ -159,8 +177,9 @@ It is relation-complete for boundary and multipolygon relations, not for unrelat
 routes. Completion can only use objects present in the source, so use a normal Sweden regional extract rather than a
 PBF that was already clipped to a small bounding box.
 
-If `data` contains exactly one source PBF, its filename is detected automatically. If it contains multiple source PBFs,
-set `OSM_SOURCE_FILE` in `.env`, using the container path, for example:
+The generated `data/gtfs-area.osm.pbf` can then be shared directly and the much larger Sweden file can be removed locally
+if it is no longer needed. If `data` contains multiple source PBFs, set `OSM_SOURCE_FILE` in `.env`, using the container
+path, for example:
 
 ```env
 OSM_SOURCE_FILE=/data/sweden-260915.osm.pbf
