@@ -17,6 +17,7 @@ from app.models.gtfs import (
     Trip,
 )
 from app.models.pagination import Page
+from app.models.stops import StopSummary
 
 __all__ = [
     "GTFS_MODELS",
@@ -33,6 +34,7 @@ __all__ = [
     "Route",
     "Shape",
     "Stop",
+    "StopSummary",
     "StopTime",
     "Transfer",
     "Trip",
