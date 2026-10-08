@@ -88,7 +88,6 @@ class Route(DatabaseModel):
 class Stop(DatabaseModel):
     stop_id: str
     stop_name: str | None = None
-    display_name: str | None = None
     stop_lat: float | None = Field(default=None, ge=-90, le=90)
     stop_lon: float | None = Field(default=None, ge=-180, le=180)
     location_type: int | None = Field(default=None, ge=0, le=4)
